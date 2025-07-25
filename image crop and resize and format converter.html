@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instant Image Cropper & Converter</title>
+  
+  <!-- Cropper.js for cropping functionality -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+  
+  <!-- GSAP for smooth animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+
+  <!-- jsPDF for PDF creation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- SortableJS for drag-and-drop reordering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+  <!-- ⬇️ 1. GOOGLE ADSENSE SCRIPT (PLACE IN <HEAD>) ⬇️ -->
+  <!-- Replace ca-pub-XXXXXXXXXXXXXXXX with your actual publisher ID from AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+     crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --primary-color: #4a90e2;
+      --primary-hover: #357abd;
+      --success-color: #50e3c2;
+      --success-hover: #38a89d;
+      --background-color: #f7f9fc;
+      --container-bg: #ffffff;
+      --text-color: #333d49;
+      --border-color: #dee2e6;
+    }
+
+    body {
+      font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 2rem;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .main-container {
+      background-color: var(--container-bg);
+      border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+      padding: 2rem;
+      width: 100%;
+      max-width: 800px;
+      text-align: center;
+    }
+
+    h1 {
+      color: var(--primary-color);
+      margin-bottom: 2rem;
+      font-weight: 600;
+    }
+
+    /* --- Step Containers --- */
+    .step {
+      margin-bottom: 2rem;
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+    .step h2 {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      text-align: left;
+    }
+
+    /* --- File Upload --- */
+    .file-upload-btn {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: background-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .file-upload-btn:hover {
+      background-color: var(--primary-hover);
+    }
+    #file-input {
+      display: none;
+    }
+
+    /* --- Control Buttons --- */
+    .controls-group {
+      text-align: left;
+      margin-bottom: 1rem;
+    }
+    .control-btn {
+      background-color: #f0f2f5;
+      color: #555;
+      padding: 8px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s ease-in-out;
+    }
+    .control-btn:hover {
+      background-color: #e9ecef;
+      border-color: #c8ced3;
+    }
+    .control-btn.active {
+      background-color: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+      box-shadow: 0 2px 8px rgba(74, 144, 226, 0.4);
+    }
+    .reset-btn {
+      background-color: #f8d7da;
+      color: #721c24;
+      border-color: #f5c6cb;
+    }
+
+    /* --- Cropper & Controls --- */
+    #cropper-container {
+      display: none; /* Hidden by default */
+      margin-top: 1.5rem;
+    }
+    #image-to-crop {
+      max-width: 100%;
+      display: block;
+    }
+    #controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start; /* Align items to the top for better layout */
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 2px solid var(--border-color);
+      flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    }
+    #controls > div:first-child {
+      flex-grow: 1; /* Allow left side to grow */
+      text-align: left;
+      margin-right: 1rem; /* Add space between controls and button */
+    }
+    #controls select {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      font-size: 1rem;
+    }
+    #quality-controls {
+      display: none; /* Hidden by default, JS will show it */
+      margin-top: 1rem;
+    }
+    #quality-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      max-width: 250px; /* Prevent it from being too wide */
+      vertical-align: middle;
+      margin-top: 0.5rem;
+      background: #e9ecef;
+      height: 8px;
+      border-radius: 4px;
+      outline: none;
+    }
+    #quality-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--primary-color);
+      cursor: pointer;
+      border-radius: 50%;
+    }
+
+    #estimated-size-container {
+      display: inline-block; /* Needed for GSAP animations */
+      margin-left: 1rem;
+      vertical-align: middle;
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+
+    /* --- Instructions Section --- */
+    #instructions {
+      text-align: left;
+      border-style: dashed;
+      border-color: var(--primary-color);
+    }
+    .instructions-content {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .feature-section {
+      flex: 1;
+      min-width: 300px;
+    }
+    .feature-section h3 {
+      color: var(--primary-hover);
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+    }
+    .feature-section ol {
+      padding-left: 20px;
+      margin: 0;
+      line-height: 1.6;
+    }
+    .feature-section li {
+      margin-bottom: 0.5rem;
+    }
+
+    /* --- PDF Combiner --- */
+    #pdf-combiner-container .step {
+      border-color: var(--primary-hover);
+    }
+    #image-thumbnail-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 1rem;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      min-height: 120px;
+    }
+    .thumbnail-item {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: grab;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+    .thumbnail-item:active { cursor: grabbing; }
+    .thumbnail-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .thumbnail-item .remove-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 22px;
+      height: 22px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 14px;
+      line-height: 22px;
+      text-align: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .thumbnail-item:hover .remove-btn {
+      opacity: 1;
+    }
+    /* Style for SortableJS dragging */
+    .thumbnail-item.sortable-ghost {
+      opacity: 0.4;
+    }
+    .thumbnail-item.sortable-chosen {
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    #target-size-controls input,
+    #target-size-controls select {
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      font-size: 0.9rem;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+
+    #download-btn {
+      background-color: var(--success-color);
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #download-btn:hover {
+      background-color: var(--success-hover);
+    }
+    #download-btn:disabled {
+      background-color: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    /* --- Loader Overlay --- */
+    #loader-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #loader-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid var(--border-color);
+      border-top-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* --- Ad Promotions --- */
+    .ad-container {
+      /* The container is now ready for a real ad. */
+      /* The background color and border have been removed. */
+      margin-top: 2rem;
+      min-height: 90px; /* Set a minimum height to avoid layout shifts */
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loader-overlay">
+    <div class="spinner"></div>
+  </div>
+
+  <main class="main-container">
+    <h1>Instant Image Cropper & Converter</h1>
+
+    <!-- Step 1: Upload -->
+    <div class="step">
+      <h2>Step 1: Upload Your Picture or Document</h2>
+      <label for="file-input" class="file-upload-btn">Choose File(s)</label>
+      <input type="file" id="file-input" accept="image/*" multiple>
+    </div>
+
+    <!-- PDF Combiner (Initially Hidden) -->
+    <div id="pdf-combiner-container" style="display: none;">
+      <div class="step">
+        <h2>Combine Images to PDF</h2>
+        <p style="text-align: left; margin-bottom: 1rem;">Drag and drop the images to reorder them.</p>
+        <div id="image-thumbnail-list"></div>
+        <button id="combine-pdf-btn" class="download-btn" style="background-color: var(--primary-color);">Combine to PDF</button>
+      </div>
+    </div>
+
+    <!-- Cropper UI (Initially Hidden) -->
+    <div id="cropper-container">
+      <div class="step">
+        <h2>Step 2: Adjust Crop</h2>
+        <div id="aspect-ratio-controls" class="controls-group">
+          <strong>Aspect Ratio:</strong><br>
+          <button class="control-btn aspect-btn" data-ratio="1.77777777778">16:9</button>
+          <button class="control-btn aspect-btn" data-ratio="1.33333333333">4:3</button>
+          <button class="control-btn aspect-btn" data-ratio="1">1:1 (Square)</button>
+          <button class="control-btn aspect-btn active" data-ratio="NaN">Free</button>
+        </div>
+        <div id="transform-controls" class="controls-group">
+          <strong>Transform:</strong><br>
+          <button class="control-btn transform-btn" data-action="rotate" data-value="-90">Rotate Left</button>
+          <button class="control-btn transform-btn" data-action="rotate" data-value="90">Rotate Right</button>
+          <button class="control-btn transform-btn" data-action="scaleX">Flip Horizontal</button>
+          <button class="control-btn transform-btn" data-action="scaleY">Flip Vertical</button>
+          <button class="control-btn reset-btn" id="reset-btn">Reset</button>
+        </div>
+        <div>
+          <img id="image-to-crop">
+        </div>
+      </div>
+      
+      <!-- Step 3: Download (Initially Hidden) -->
+      <div class="step">
+        <h2>Step 3: Download</h2>
+        <div id="preset-controls" class="controls-group">
+          <strong>Output Size:</strong><br>
+          <button class="control-btn preset-btn active" data-width="null">Custom Size</button>
+          <button class="control-btn preset-btn" data-width="1920" data-height="1080">PC Wallpaper</button>
+          <button class="control-btn preset-btn" data-width="1080" data-height="1920">Mobile Wallpaper</button>
+          <button class="control-btn preset-btn" data-width="3840" data-height="2160">4K</button>
+          <button class="control-btn preset-btn" data-width="7680" data-height="4320">8K</button>
+        </div>
+        <div id="controls">
+          <div>
+            <div>
+              <label for="format-select">Convert to: </label>
+              <select id="format-select">
+                <option value="image/png">PNG</option>
+                <option value="image/jpeg" selected>JPG</option>
+                <option value="image/webp">WEBP</option>
+                <option value="application/pdf">PDF</option>
+              </select>
+            </div>
+            <!-- Quality Control Mode Toggle -->
+            <div id="quality-mode-toggle" style="margin-top: 1rem; display: none;">
+              <input type="checkbox" id="target-size-enabled" style="vertical-align: middle;">
+              <label for="target-size-enabled">Set target file size</label>
+            </div>
+            <div id="quality-controls">
+              <label for="quality-slider">Quality: <output id="quality-value">92</output>%</label>
+              <span id="estimated-size-container">
+                (Est. Size: <output id="estimated-size">...</output>)
+              </span><br />
+              <input type="range" id="quality-slider" min="1" max="100" value="92">
+            </div>
+            <!-- Target Size Input (hidden by default) -->
+            <div id="target-size-controls" style="display: none; margin-top: 1rem;">
+              <label for="target-size-input">Target:</label>
+              <input type="number" id="target-size-input" value="500" style="width: 70px;">
+              <select id="target-size-unit">
+                <option value="KB" selected>KB</option>
+                <option value="MB">MB</option>
+              </select>
+            </div>
+          </div>
+          <button id="download-btn">Crop & Download</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instructions Section -->
+    <div class="step" id="instructions">
+      <h2>How to Use This Tool</h2>
+      <div class="instructions-content">
+        <div class="feature-section">
+          <h3>Single Image Editing</h3>
+          <ol>
+            <li>Click <strong>"Choose File(s)"</strong> and select a single image.</li>
+            <li>Use the <strong>Aspect Ratio</strong> & <strong>Transform</strong> buttons to adjust your image.</li>
+            <li>Select an <strong>Output Size</strong> preset or leave as "Custom Size".</li>
+            <li>Choose your desired format (JPG, PNG, WEBP, or PDF).</li>
+            <li>For JPG/WEBP, adjust the <strong>Quality</strong> slider or set a target file size.</li>
+            <li>Click <strong>"Crop & Download"</strong> to save your file.</li>
+          </ol>
+        </div>
+        <div class="feature-section">
+          <h3>Combine Multiple Images to PDF</h3>
+          <ol>
+            <li>Click <strong>"Choose File(s)"</strong> and select two or more images.</li>
+            <li>A new panel will appear with thumbnails of your images.</li>
+            <li><strong>Drag and drop</strong> the thumbnails to set the page order.</li>
+            <li>Hover and click the <strong>&times;</strong> button to remove an image.</li>
+            <li>Click <strong>"Combine to PDF"</strong> to download your document.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ad Promotions Section -->
+    <div class="ad-container">
+      <!-- ⬇️ 2. GOOGLE ADSENSE AD UNIT (PLACE WHERE YOU WANT THE AD) ⬇️ -->
+      <!-- This is an example for a responsive ad unit. Replace with your own code. -->
+      <!-- Replace ca-pub-XXXXXXXXXXXXXXXX with your publisher ID -->
+      <!-- Replace YYYYYYYYYY with your ad slot ID -->
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="YYYYYYYYYY"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
+      <script>
+           (adsbygoogle = window.adsbygoogle || []).push({});
+      </script>
+    </div>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById('file-input');
+    const image = document.getElementById('image-to-crop');
+    const cropperContainer = document.getElementById('cropper-container');
+    const downloadBtn = document.getElementById('download-btn');
+    const formatSelect = document.getElementById('format-select');
+    const aspectRatioControls = document.getElementById('aspect-ratio-controls');
+    const transformControls = document.getElementById('transform-controls');
+    const presetControls = document.getElementById('preset-controls');
+    const loaderOverlay = document.getElementById('loader-overlay');
+    const resetBtn = document.getElementById('reset-btn');
+    const qualityControls = document.getElementById('quality-controls');
+    const qualitySlider = document.getElementById('quality-slider');
+    const qualityValue = document.getElementById('quality-value');
+    const estimatedSizeContainer = document.getElementById('estimated-size-container');
+    const estimatedSize = document.getElementById('estimated-size');
+    const qualityModeToggle = document.getElementById('quality-mode-toggle');
+    const targetSizeEnabled = document.getElementById('target-size-enabled');
+    const targetSizeControls = document.getElementById('target-size-controls');
+    const targetSizeInput = document.getElementById('target-size-input');
+    const targetSizeUnit = document.getElementById('target-size-unit');
+    const pdfCombinerContainer = document.getElementById('pdf-combiner-container');
+    const imageThumbnailList = document.getElementById('image-thumbnail-list');
+    const combinePdfBtn = document.getElementById('combine-pdf-btn');
+    
+    let cropper = null;
+    let activePreset = null;
+
+    function resetAll() {
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+      }
+      gsap.to(pdfCombinerContainer, { autoAlpha: 0, display: 'none', duration: 0.4 });
+      gsap.to(cropperContainer, { autoAlpha: 0, display: 'none', duration: 0.4 });
+      fileInput.value = ''; // Allow re-uploading the same file
+      image.src = '';
+      activePreset = null;
+      pdfImages = [];
+      imageThumbnailList.innerHTML = '';
+    }
+
+    // 1. Handle file upload
+    fileInput.addEventListener('change', (e) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) {
+        resetAll();
+        return;
+      }
+
+      if (files.length === 1) {
+        showCropper(files[0]);
+      } else {
+        showPdfCombiner(Array.from(files));
+      }
+    });
+
+    function showCropper(file) {
+      gsap.to(pdfCombinerContainer, { autoAlpha: 0, display: 'none', duration: 0.4 });
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        image.src = event.target.result;
+        
+        if (cropper) {
+          cropper.destroy();
+        }
+        
+        gsap.to(cropperContainer, { autoAlpha: 1, display: 'block', duration: 0.5 });
+
+        cropper = new Cropper(image, {
+          aspectRatio: NaN, // Default to free crop
+          viewMode: 1,
+          background: false,
+          responsive: true,
+          restore: false,
+          guides: true,
+          center: true,
+          highlight: true,
+          cropBoxMovable: true,
+          cropBoxResizable: true,
+          toggleDragModeOnDblclick: false,
+          // This event fires on load and whenever the crop box changes
+          crop() {
+            debouncedUpdateSize();
+          },
+        });
+
+        // Reset buttons to default state
+        document.querySelectorAll('.aspect-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector('.aspect-btn[data-ratio="NaN"]').classList.add('active');
+        document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector('.preset-btn[data-width="null"]').classList.add('active');
+        activePreset = null;
+
+        // Show quality slider by default if JPG/WEBP is selected
+        handleFormatChange();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    let pdfImages = [];
+
+    function showPdfCombiner(files) {
+      resetAll(); // Clear any previous state
+      gsap.to(pdfCombinerContainer, { autoAlpha: 1, display: 'block', duration: 0.5 });
+
+      let filesToProcess = files.length;
+      loaderOverlay.classList.add('visible');
+
+      files.forEach((file, index) => {
+        if (!file.type.startsWith('image/')) {
+          filesToProcess--;
+          if (filesToProcess === 0) loaderOverlay.classList.remove('visible');
+          return; // Skip non-image files
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          pdfImages.push({
+            id: `img-${Date.now()}-${index}`,
+            file: file,
+            src: event.target.result
+          });
+          filesToProcess--;
+          if (filesToProcess === 0) {
+            loaderOverlay.classList.remove('visible');
+            renderThumbnails();
+          }
+        };
+        reader.onerror = () => {
+          filesToProcess--;
+          if (filesToProcess === 0) loaderOverlay.classList.remove('visible');
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // If no valid image files were found at all
+      if (pdfImages.length === 0 && filesToProcess === files.length) {
+          loaderOverlay.classList.remove('visible');
+          alert("No valid image files selected for PDF combination.");
+      }
+    }
+
+    // 2. Handle aspect ratio button clicks
+    aspectRatioControls.addEventListener('click', (e) => {
+      if (!cropper || !e.target.classList.contains('aspect-btn')) return;
+
+      document.querySelectorAll('.aspect-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+
+      const ratio = parseFloat(e.target.dataset.ratio);
+      cropper.setAspectRatio(ratio);
+    });
+
+    // 3. Handle transform button clicks
+    transformControls.addEventListener('click', (e) => {
+      if (!cropper || !e.target.classList.contains('transform-btn')) return;
+
+      const action = e.target.dataset.action;
+      const value = e.target.dataset.value;
+
+      switch (action) {
+        case 'rotate':
+          cropper.rotate(parseInt(value, 10));
+          break;
+        case 'scaleX':
+          cropper.scaleX(cropper.getData().scaleX === 1 ? -1 : 1);
+          break;
+        case 'scaleY':
+          cropper.scaleY(cropper.getData().scaleY === 1 ? -1 : 1);
+          break;
+      }
+    });
+
+    // Add listener for the new reset button
+    resetBtn.addEventListener('click', resetAll);
+
+    // 4. Handle output preset button clicks
+    presetControls.addEventListener('click', (e) => {
+      if (!cropper || !e.target.classList.contains('preset-btn')) return;
+
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+
+      const width = e.target.dataset.width;
+
+      if (width === 'null') {
+        activePreset = null;
+        // Optional: you could also reset aspect ratio here if you want
+        // cropper.setAspectRatio(NaN); 
+      } else {
+        const height = e.target.dataset.height;
+        activePreset = {
+          width: parseInt(width, 10),
+          height: parseInt(height, 10)
+        };
+        cropper.setAspectRatio(activePreset.width / activePreset.height);
+      }
+    });
+
+    // 5. Utility Functions
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    function formatBytes(bytes, decimals = 2) {
+      if (!bytes || bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // 6. Handle quality, format, and size estimation
+    const updateEstimatedSize = () => {
+      if (!cropper || !cropper.cropped) return;
+
+      const selectedFormat = formatSelect.value;
+      if (selectedFormat !== 'image/jpeg' && selectedFormat !== 'image/webp') {
+        return; // No size estimation for PNG/PDF
+      }
+      
+      estimatedSize.textContent = 'calculating...';
+      const quality = parseInt(qualitySlider.value, 10) / 100;
+      
+      // Use toBlob for efficient, async size calculation
+      cropper.getCroppedCanvas().toBlob((blob) => {
+          if (blob) estimatedSize.textContent = formatBytes(blob.size);
+      }, selectedFormat, quality);
+    };
+    const debouncedUpdateSize = debounce(updateEstimatedSize, 300);
+
+    function handleFormatChange() {
+      const isCompressible = formatSelect.value === 'image/jpeg' || formatSelect.value === 'image/webp';
+      const useTargetSize = targetSizeEnabled.checked;
+
+      // Show/hide the main toggle for quality vs. target size
+      gsap.to(qualityModeToggle, { autoAlpha: isCompressible ? 1 : 0, display: isCompressible ? 'block' : 'none', duration: 0.4 });
+
+      // Show/hide the quality slider
+      gsap.to(qualityControls, { autoAlpha: isCompressible && !useTargetSize ? 1 : 0, display: isCompressible && !useTargetSize ? 'block' : 'none', duration: 0.4 });
+      
+      // Show/hide the target size input
+      gsap.to(targetSizeControls, { autoAlpha: isCompressible && useTargetSize ? 1 : 0, display: isCompressible && useTargetSize ? 'block' : 'none', duration: 0.4 });
+
+      // The estimated size preview only makes sense with the slider
+      gsap.to(estimatedSizeContainer, { autoAlpha: isCompressible && !useTargetSize ? 1 : 0, duration: 0.4 });
+      if (isCompressible && !useTargetSize) {
+        updateEstimatedSize();
+      }
+    }
+
+    formatSelect.addEventListener('change', handleFormatChange);
+    targetSizeEnabled.addEventListener('change', handleFormatChange);
+
+    qualitySlider.addEventListener('input', (e) => {
+      qualityValue.textContent = e.target.value;
+      debouncedUpdateSize();
+    });
+
+    // 7. Handle download (now an async function)
+    downloadBtn.addEventListener('click', async () => {
+      if (!cropper) return;
+
+      loaderOverlay.classList.add('visible');
+
+      try {
+        const format = formatSelect.value;
+        const canvasOptions = {
+          fillColor: '#fff',
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: 'high',
+        };
+
+        if (activePreset) {
+          canvasOptions.width = activePreset.width;
+          canvasOptions.height = activePreset.height;
+        }
+
+        const canvas = cropper.getCroppedCanvas(canvasOptions);
+
+        if (targetSizeEnabled.checked && (format === 'image/jpeg' || format === 'image/webp')) {
+          // --- NEW LOGIC: Target Size ---
+          const targetValue = parseFloat(targetSizeInput.value);
+          if (isNaN(targetValue) || targetValue <= 0) {
+            alert("Please enter a valid, positive number for the target size.");
+            return;
+          }
+          const multiplier = targetSizeUnit.value === 'MB' ? 1024 * 1024 : 1024;
+          const targetSizeInBytes = targetValue * multiplier;
+
+          const blob = await findBlobForTargetSize(canvas, targetSizeInBytes, format);
+          
+          if (blob.didFailToMeetTarget) {
+            const actualSize = formatBytes(blob.size);
+            const targetSize = formatBytes(targetSizeInBytes);
+            if (!confirm(`Could not meet the target size of ${targetSize}. The smallest possible size for this image is approximately ${actualSize}. Do you want to download it anyway?`)) {
+              return; // User cancelled the download
+            }
+          }
+          
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          const fileExtension = format.split('/')[1];
+          link.download = `resized-image.${fileExtension}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+
+        } else if (format === 'application/pdf') {
+          // PDF Creation Logic
+          const { jsPDF } = window.jspdf;
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          const imgWidth = canvas.width;
+          const imgHeight = canvas.height;
+          
+          const orientation = imgWidth >= imgHeight ? 'l' : 'p';
+          const pdf = new jsPDF({ orientation: orientation, unit: 'px', format: [imgWidth, imgHeight] });
+
+          pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+          pdf.save('cropped-document.pdf');
+
+        } else {
+          // Original Image Download Logic
+          const fileExtension = format.split('/')[1];
+          const quality = parseInt(qualitySlider.value, 10) / 100;
+          const link = document.createElement('a');
+          link.href = canvas.toDataURL(format, quality);
+          link.download = `cropped-image.${fileExtension}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } catch (error) {
+        console.error("Download failed:", error);
+        alert("An error occurred during download. Please check the console for details.");
+      } finally {
+        loaderOverlay.classList.remove('visible');
+      }
+    });
+
+    function renderThumbnails() {
+      imageThumbnailList.innerHTML = '';
+      pdfImages.forEach(imgData => {
+        const item = document.createElement('div');
+        item.className = 'thumbnail-item';
+        item.dataset.id = imgData.id;
+
+        const img = document.createElement('img');
+        img.src = imgData.src;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.innerHTML = '&times;';
+        removeBtn.onclick = () => {
+          pdfImages = pdfImages.filter(i => i.id !== imgData.id);
+          if (pdfImages.length === 0) {
+            resetAll();
+          } else if (pdfImages.length === 1) {
+            showCropper(pdfImages[0].file);
+          } else {
+            renderThumbnails();
+          }
+        };
+
+        item.appendChild(img);
+        item.appendChild(removeBtn);
+        imageThumbnailList.appendChild(item);
+      });
+
+      // Init SortableJS
+      new Sortable(imageThumbnailList, {
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: () => {
+          const reorderedImages = [];
+          imageThumbnailList.querySelectorAll('.thumbnail-item').forEach(item => {
+            const id = item.dataset.id;
+            const image = pdfImages.find(i => i.id === id);
+            if (image) reorderedImages.push(image);
+          });
+          pdfImages = reorderedImages;
+        }
+      });
+    }
+
+    combinePdfBtn.addEventListener('click', async () => {
+      if (pdfImages.length === 0) return;
+
+      loaderOverlay.classList.add('visible');
+      
+      try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4'); // Portrait, mm, A4
+        const a4Width = 210;
+        const a4Height = 297;
+        const margin = 10;
+        const maxWidth = a4Width - margin * 2;
+        const maxHeight = a4Height - margin * 2;
+
+        for (let i = 0; i < pdfImages.length; i++) {
+          const imgData = pdfImages[i];
+          const img = new Image();
+          img.src = imgData.src;
+          await new Promise(resolve => img.onload = resolve);
+
+          const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+          const newWidth = img.width * ratio;
+          const newHeight = img.height * ratio;
+          const x = (a4Width - newWidth) / 2;
+          const y = (a4Height - newHeight) / 2;
+
+          if (i > 0) pdf.addPage();
+          
+          pdf.addImage(imgData.src, 'JPEG', x, y, newWidth, newHeight);
+        }
+        pdf.save('combined-document.pdf');
+      } catch (error) {
+        console.error("PDF creation failed:", error);
+        alert("An error occurred while creating the PDF.");
+      } finally {
+        loaderOverlay.classList.remove('visible');
+      }
+    });
+
+    // --- Helper function for target size search ---
+    async function findBlobForTargetSize(canvas, targetSizeInBytes, format) {
+      let minQuality = 0;
+      let maxQuality = 1;
+      let bestBlob = null;
+
+      // Promisify canvas.toBlob
+      const getBlob = (quality) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), format, quality));
+
+      // Use a binary search to find the best quality for the target size
+      for (let i = 0; i < 8; i++) { // 8 iterations is a good balance of speed and accuracy
+        const quality = (minQuality + maxQuality) / 2;
+        const blob = await getBlob(quality);
+        if (!blob) throw new Error("Failed to create blob.");
+
+        if (blob.size > targetSizeInBytes) {
+          maxQuality = quality;
+        } else {
+          minQuality = quality;
+          bestBlob = blob; // Keep the last blob that was under the target
+        }
+      }
+
+      if (!bestBlob) { // If target size is smaller than the smallest possible output
+        bestBlob = await getBlob(0.01); // Get the smallest possible blob
+        // Add a flag if we couldn't meet the target
+        if (bestBlob && bestBlob.size > targetSizeInBytes) {
+          bestBlob.didFailToMeetTarget = true;
+        }
+      }
+
+      return bestBlob;
+    }
+  </script>
+
+</body>
+</html>
